@@ -38,32 +38,11 @@ async function uploadMeters(req, res, filepath, conn) {
     // is sequential. A small negative is the database requests do not run in parallel in the usual case without an error.
     // However, uploading meters is not common so slowing it down slightly seems a reasonable price to get this behavior.
 
-<<<<<<< HEAD
     try {
         for (let i = 0; i < meters.length; i++) {
             let meter = meters[i];
             //validation for boolean values
             validateBooleanFields(meter, i);
-=======
-	try {
-		for (let i = 0; i < meters.length; i++) {
-			let meter = meters[i];
-			// First verify GPS is okay
-			// This assumes that the sixth column is the GPS as order is assumed for now in a GPS file.
-			const gpsInput = meter[6];
-			// Skip if undefined.
-			if (gpsInput) {
-				// Verify GPS is okay values
-				const { validGps, message } = isValidGPSInput(gpsInput);
-				if (!validGps) {
-					let msg = `For meter ${meter[0]} the gps coordinates of ${gpsInput} are invalid with error of "${message}"`;
-					throw new CSVPipelineError(msg, undefined, 500);
-				}
-				// Need to reverse latitude & longitude because standard GPS gives in that order but a GPSPoint for the
-				// DB is longitude, latitude.
-				meter[6] = switchGPS(gpsInput);
-			}
->>>>>>> development
 
             // Validate min and max values
             validateMinMaxValues(meter, i);
@@ -83,7 +62,6 @@ async function uploadMeters(req, res, filepath, conn) {
                 meter[6] = switchGPS(gpsInput);
             }
 
-<<<<<<< HEAD
             // verify the area input
             const areaInput = meter[9];
             if (areaInput) {
@@ -187,47 +165,6 @@ async function uploadMeters(req, res, filepath, conn) {
     } catch (error) {
         throw new CSVPipelineError(`Failed to upload meters due to internal OED Error: ${error.message}`, undefined, 500);
     }
-=======
-			if (normalizeBoolean(req.body.update)) {
-				// Updating the new meters.
-				// First get its id.
-				let identifierOfMeter = req.body.meterIdentifier;
-				if (!identifierOfMeter) {
-					// Seems no identifier provided so use one in CSV file.
-					if (!meter[7]) {
-						// There is no identifier given for meter in CSV so use name as identifier since would be automatically set.
-						identifierOfMeter = meter[0];
-					} else {
-						identifierOfMeter = meter[7];
-					}
-				} else if (meters.length !== 1) {
-					// This error could be thrown a number of times, one per meter in CSV, but should only see one of them.
-					throw new CSVPipelineError(`Meter identifier provided (\"${identifierOfMeter}\") in request with update for meters but more than one meter in CSV so not processing`, undefined, 500);
-				}
-				let currentMeter;
-				currentMeter = await Meter.getByIdentifier(identifierOfMeter, conn)
-					.catch(error => {
-						// Did not find the meter.
-						let msg = `Meter identifier of \"${identifierOfMeter}\" does not seem to exist with update for meters and got DB error of: ${error.message}`;
-						throw new CSVPipelineError(msg, undefined, 500);
-					});
-				currentMeter.merge(...meter);
-				await currentMeter.update(conn);
-			} else {
-				// Inserting the new meter
-				await new Meter(undefined, ...meter).insert(conn)
-					.catch(error => {
-						// Probably duplicate meter.
-						throw new CSVPipelineError(
-							`Meter name of \"${meter[0]}\" got database error of: ${error.message}`, undefined, 500);
-					}
-					);
-			}
-		}
-	} catch (error) {
-		throw new CSVPipelineError(`Failed to upload meters due to internal OED Error: ${error.message}`, undefined, 500);
-	}
->>>>>>> development
 }
 
 // TODO This is almost the same as the client function in src/client/app/utils/calibration.ts. When the server side
@@ -240,7 +177,6 @@ async function uploadMeters(req, res, filepath, conn) {
  * @returns true if string is GPS and false otherwise.
  */
 function isValidGPSInput(input) {
-<<<<<<< HEAD
     let message = '';
     let validGps = true;
     if (input.indexOf(',') === -1) { // if there is no comma
@@ -264,31 +200,6 @@ function isValidGPSInput(input) {
         }
     }
     return { validGps, message };
-=======
-	let message = '';
-	let validGps = true;
-	if (input.indexOf(',') === -1) { // if there is no comma
-		message = 'GPS Input is missing a comma';
-		validGps = false;
-	} else if (input.indexOf(',') !== input.lastIndexOf(',')) { // if there are multiple commas
-		message = 'GPS Input has too many commas';
-		validGps = false;
-	}
-	if (validGps) {
-		// Works if value is not a number since parseFloat returns a NaN so treated as invalid later.
-		const array = input.split(',').map((value) => parseFloat(value));
-		const latitudeIndex = 0;
-		const longitudeIndex = 1;
-		const latitudeConstraint = array[latitudeIndex] >= -90 && array[latitudeIndex] <= 90;
-		const longitudeConstraint = array[longitudeIndex] >= -180 && array[longitudeIndex] <= 180;
-		const result = latitudeConstraint && longitudeConstraint;
-		if (!result) {
-			validGps = false;
-			message = 'Invalid GPS coordinate, latitude must be an integer between -90 and 90, longitude must be an integer between -180 and 180. You input: ' + input;
-		}
-	}
-	return { validGps, message };
->>>>>>> development
 }
 
 /**
